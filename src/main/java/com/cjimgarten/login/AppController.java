@@ -5,12 +5,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Created by chris on 3/13/18.
@@ -19,7 +17,6 @@ import javax.servlet.http.Cookie;
 public class AppController {
 
     private static final Logger LOGGER = Logger.getLogger(AppController.class);
-    private Cookie loggedIn = new Cookie("loggedIn", "false");
 
     @Autowired
     private UserRepository userRepository;
@@ -33,10 +30,11 @@ public class AppController {
     }
 
     @RequestMapping(value = "login", method = RequestMethod.GET)
-    public String login(Model model) {
+    public String login(Model model,
+                        @CookieValue(name = "logged_in", defaultValue = "false") String loggedIn) {
 
         // if user is authenticated redirect to home page
-        if (loggedIn.getValue().equals("true")) {
+        if (loggedIn.equals("true")) {
             LOGGER.info("User authenticated -- redirecting to home page");
             return "redirect:/home";
         }
@@ -47,7 +45,9 @@ public class AppController {
     }
 
     @RequestMapping(value = "login", method = RequestMethod.POST)
-    public String processLoginForm(@ModelAttribute User user, Model model) {
+    public String processLoginForm(@ModelAttribute User user,
+                                   Model model,
+                                   HttpServletResponse response) {
 
         LOGGER.info("Processing login form");
         LOGGER.info(user);
@@ -61,7 +61,7 @@ public class AppController {
                     u.getPassword().equals(user.getPassword())) {
 
                 // successful login attempt
-                loggedIn.setValue("true");
+                response.addCookie(new Cookie("logged_in", "true"));
                 LOGGER.info("Login attempt successful -- logging in");
                 return "redirect:/home";
             }
@@ -74,10 +74,12 @@ public class AppController {
     }
 
     @RequestMapping(value = "register", method = RequestMethod.GET)
-    public String register(Model model) {
+    public String register(Model model,
+                           @CookieValue(name = "logged_in", defaultValue = "false") String
+                                   loggedIn) {
 
         // if user is authenticated redirect to home page
-        if (loggedIn.getValue().equals("true")) {
+        if (loggedIn.equals("true")) {
             LOGGER.info("User authenticated -- redirecting to home page");
             return "redirect:/home";
         }
@@ -90,7 +92,8 @@ public class AppController {
     @RequestMapping(value = "register", method = RequestMethod.POST)
     public String processRegisterForm(@ModelAttribute User user,
                                       @RequestParam String confirmPassword,
-                                      Model model) {
+                                      Model model,
+                                      HttpServletResponse response) {
 
         LOGGER.info("Processing register form");
         LOGGER.info(user);
@@ -103,7 +106,7 @@ public class AppController {
 
             // successful registration attempt
             userRepository.save(user);
-            loggedIn.setValue("true");
+            response.addCookie(new Cookie("logged_in", "true"));
             LOGGER.info("Registration attempt successful -- logging in");
             return "redirect:/home";
         }
@@ -115,10 +118,11 @@ public class AppController {
     }
 
     @RequestMapping(value = "home", method = RequestMethod.GET)
-    public String home(Model model) {
+    public String home(Model model,
+                       @CookieValue(name = "logged_in", defaultValue = "false") String loggedIn) {
 
         // ensure user is authenticated
-        if (loggedIn.getValue().equals("false")) {
+        if (loggedIn.equals("false")) {
             LOGGER.info("User not authenticated -- access denied");
             return "redirect:/login";
         }
@@ -129,9 +133,9 @@ public class AppController {
     }
 
     @RequestMapping(value = "home", method = RequestMethod.POST)
-    public String logout(Model model) {
+    public String logout(Model model, HttpServletResponse response) {
         LOGGER.info("Logging out");
-        loggedIn.setValue("false");
+        response.addCookie(new Cookie("logged_in", "false"));
         return "redirect:/";
     }
 }
